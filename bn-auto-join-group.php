@@ -129,7 +129,43 @@ function auto_join_group_plugin_options() {
 
 add_action('admin_menu', 'auto_join_group_plugin_menu', 50);
 
- 
+function check_and_add_to_group($userid, $groupmatch)
+{
+  // see if the user is already in the group
+  if ( !BP_Groups_Member::check_is_member( $userid, $groupmatch->id ) ) {
+    // make sure the user isn't banned from the group!
+    if ( !groups_is_user_banned( $userid, $group_id ) ) {
+      // add the group already!
+      $group_id = $groupmatch->id;
+      $user_id = $userid;
+
+      if ( groups_check_user_has_invite( $user_id, $group_id ) ) {
+        groups_delete_invite( $user_id, $group_id );
+      }
+
+      $new_member = new bp_groups_member;
+      $new_member->group_id = $group_id;
+      $new_member->inviter_id = 0;
+      $new_member->user_id = $user_id;
+      $new_member->is_admin = 0;
+      $new_member->user_title = '';
+      $new_member->date_modified = time();
+      $new_member->is_confirmed = 1;
+
+      if ( !$new_member->save() ) {
+        return false;
+      }
+
+      // Should I add this to the activity stream?  left off for now
+
+      /* Modify group meta */
+      groups_update_groupmeta( $group_id, 'total_member_count', (int) groups_get_groupmeta( $group_id, 'total_member_count') + 1 );
+      groups_update_groupmeta( $group_id, 'last_activity', time() );
+    }
+  }
+
+  return false;
+}
  
 // automatically join users to groups based on profile fields when the user modifies his profile or activates his account
 function bn_auto_group_join($userid, $x = 0, $y = 0){
@@ -150,40 +186,9 @@ function bn_auto_group_join($userid, $x = 0, $y = 0){
 			// see if we can match the group
 			$groupmatches = $wpdb->get_results("SELECT * FROM {$bp->groups->table_name} WHERE name like '$profile->group_pre_regex$profilevalue->value$profile->group_post_regex'");
 			foreach ($groupmatches as $groupmatch) {
-				
-				// see if the user is already in the group
-				if ( !BP_Groups_Member::check_is_member( $userid, $groupmatch->id ) ) {
-					// make sure the user isn't banned from the group!
-					if ( !groups_is_user_banned( $userid, $group->id ) ) {
-						// add the group already!
-							$group_id = $groupmatch->id;
-							$user_id = $userid;
-						      if ( groups_check_user_has_invite( $user_id, $group_id ) ) {
-								groups_delete_invite( $user_id, $group_id );
-								}
-							  
-							 $new_member = new BP_Groups_Member;
-							 $new_member->group_id = $group_id;
-							 $new_member->inviter_id = 0;
-							 $new_member->user_id = $user_id;
-							 $new_member->is_admin = 0;
-							 $new_member->user_title = '';
-							 $new_member->date_modified = time();
-							 $new_member->is_confirmed = 1;
-							 
-							 if ( !$new_member->save() ) {
-							 	return false;
-								}
-								
-							// Should I add this to the activity stream?  left off for now
-							 
-							/* Modify group meta */
-							groups_update_groupmeta( $group_id, 'total_member_count', (int) groups_get_groupmeta( $group_id, 'total_member_count') + 1 );
-							groups_update_groupmeta( $group_id, 'last_activity', time() );
- 
-					}
-
-				}
+                          if(!check_and_add_to_group($userid, $groupmatch)) {
+                            return false;
+                          }
 			}
 		}
 		
