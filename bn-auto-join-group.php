@@ -74,9 +74,16 @@ function auto_join_group_plugin_options() {
           bn_auto_group_join($user->user_id, 'myid');
         }
       }
-
     }
   } 
+
+  if ( isset($_GET['mode']) && isset($_GET['all_users_group']) && 'save_allusers' == $_GET['mode'] ) {
+    update_option('gaj_all_users_group ', $_GET['all_users_group']);
+    $all_users_message = "All users group updated";
+  }
+  else {
+    $all_users_message = '';
+  }
 
   if ( isset($_GET['mode']) && isset($_GET['field_id']) && 'edit' == $_GET['mode'] ) {
     // edit one of the profile linking options
@@ -123,20 +130,54 @@ function auto_join_group_plugin_options() {
         </tr>
         <?php
     }
-    echo "</table>";
+    ?>
+    </table>
+
+    <h3>All Users</h3>
+    <p>If you wish to add all users who register to a particular group, select it here</p>
+
+    <?php
+
+    if(!empty($all_users_message)) {
+      echo "<p><strong>$all_users_message</strong></p>";
+    }
+
+    ?>
+
+    <form method="get" name="auto-join" action="admin.php">
+      <label for="all_users_group">Group:</label>
+      <select id="all_users_group" name="all_users_group">
+        <option value="0">None</option>
+      <?php
+        $current_setting = get_option('gaj_all_users_group');
+
+        $groupmatches = $wpdb->get_results("SELECT * FROM {$bp->groups->table_name}");
+        foreach ($groupmatches as $groupmatch) {
+          ?><option value="<?php echo $groupmatch->id; ?>"<?php if($groupmatch->id == $current_setting) echo " selected"; ?>><?php echo $groupmatch->name; ?></option>
+          <?php
+        }
+      ?>
+      </select>
+      <p class="submit">
+        <input type="submit" name="Submit" class="button-primary" value="Save All Users Changes">
+        <input type="hidden" name="mode" value="save_allusers">
+        <input type="hidden" name="page" value="auto_join_group_plugin_options">
+      </p>
+
+    </form>
+    <?php
   }
 }
 
 add_action('admin_menu', 'auto_join_group_plugin_menu', 50);
 
-function check_and_add_to_group($userid, $groupmatch)
+function check_and_add_to_group($userid, $group_id)
 {
   // see if the user is already in the group
-  if ( !BP_Groups_Member::check_is_member( $userid, $groupmatch->id ) ) {
+  if ( !BP_Groups_Member::check_is_member( $userid, $group_id ) ) {
     // make sure the user isn't banned from the group!
     if ( !groups_is_user_banned( $userid, $group_id ) ) {
       // add the group already!
-      $group_id = $groupmatch->id;
       $user_id = $userid;
 
       if ( groups_check_user_has_invite( $user_id, $group_id ) ) {
@@ -175,6 +216,11 @@ function bn_auto_group_join($userid, $x = 0, $y = 0){
     $userid =  $bp->loggedin_user->id ; // current user if logged in.  On activation, userid sent with do_action
   }
 
+  // All users
+  if($all_users_group = get_option('gaj_all_users_group')) {
+    check_and_add_to_group($userid, $all_users_group);
+  }
+
   // get profile fields with group linking
   $profiles = $wpdb->get_results("SELECT * FROM {$bp->profile->table_name_fields} WHERE group_link = 1");
   foreach ($profiles as $profile)  {
@@ -186,7 +232,7 @@ function bn_auto_group_join($userid, $x = 0, $y = 0){
       // see if we can match the group
       $groupmatches = $wpdb->get_results("SELECT * FROM {$bp->groups->table_name} WHERE name like '$profile->group_pre_regex$profilevalue->value$profile->group_post_regex'");
       foreach ($groupmatches as $groupmatch) {
-        if(!check_and_add_to_group($userid, $groupmatch)) {
+        if(!check_and_add_to_group($userid, $groupmatch->id)) {
           return false;
         }
       }
