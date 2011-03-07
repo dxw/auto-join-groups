@@ -245,7 +245,7 @@ function bn_auto_group_join($userid, $x = 0, $y = 0){
 // below hook is located in bp-xprofile.php.  Add user to group when profile is edited
 add_action( 'xprofile_updated_profile', 'bn_auto_group_join', 1, 1 );
 // below hook is located in wpmu-functions.php.  Add user to group when account is activated
-add_action( 'wpmu_activate_user', 'bn_auto_group_join', 12, 3 );
+add_action( 'bp_core_activated_user', 'bn_auto_group_join', 12, 3 );
 
 
 ?>
