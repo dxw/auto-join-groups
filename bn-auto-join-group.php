@@ -20,7 +20,7 @@
  */
 
 function addHeaderCode() {
-  echo '<link type="text/css" rel="stylesheet" href="' . get_bloginfo('wpurl') . '/wp-content/plugins/bn-auto-join-group/css/bn-auto-join-group.css" />' . "\n";
+  echo '<link type="text/css" rel="stylesheet" href="' . plugins_url('css/bn-auto-join-group.css', __FILE__).'" />' . "\n";
 }
 
 
